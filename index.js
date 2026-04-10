@@ -9,7 +9,12 @@ import { getFresnelMat } from "./src/GetFresnelMat.js";
 
 import { Network } from "./core/Network.js";
 import { findPath } from "./core/OSPF.js";
-import { createNodeMesh, drawCurvedPath, animatePacket } from "./visuals/Visuals.js";
+import {
+  createNodeMesh,
+  drawConnection,
+  drawOSPFPath,
+  animatePacket
+} from "./visuals/Visuals.js";
 import { setupControls } from "./ui/Controls.js";
 import { setupUI } from "./ui/UI.js";
 
