@@ -145,21 +145,15 @@ function ping(ip1, ip2) {
   let n1 = network.findByIP(ip1);
   let n2 = network.findByIP(ip2);
 
-  // fallback to selected nodes
   if (!n1 || !n2) {
     const selected = controlsState.getSelected();
-    if (selected.length < 2) {
-      alert("Select 2 nodes or enter valid IPs");
-      return;
-    }
+    if (selected.length < 2) return alert("Select 2 nodes or enter IPs");
     [n1, n2] = selected;
   }
 
   const path = findPath(network.nodes, n1, n2);
 
-  console.log("OSPF PATH:", path.map(n => n.ip));
-
-  const curve = drawCurvedPath(earthMesh, path);
+  const curve = drawOSPFPath(earthMesh, path);
   animatePacket(scene, curve);
 }
 
@@ -172,7 +166,6 @@ window.addEventListener("click", (e) => {
 
   raycaster.setFromCamera(mouse, camera);
 
-  // check node click first
   const hits = raycaster.intersectObjects(scene.children, true);
 
   if (hits.length > 0) {
@@ -180,13 +173,24 @@ window.addEventListener("click", (e) => {
 
     if (obj.userData.node) {
       const node = obj.userData.node;
-      controlsState.addSelection(node);
+      const mode = controlsState.getMode();
+
+      const selected = controlsState.addSelection(node);
       ui.showNode(node);
+
+      // 🔗 CONNECT MODE
+      if (mode === "CONNECT" && selected.length === 2) {
+        connectNodes(selected[0], selected[1]);
+
+        drawConnection(earthMesh, selected[0], selected[1]);
+
+        controlsState.clearSelection();
+      }
+
       return;
     }
   }
 
-  // otherwise place node
   const earthHit = raycaster.intersectObject(earthMesh);
 
   if (earthHit.length > 0) {

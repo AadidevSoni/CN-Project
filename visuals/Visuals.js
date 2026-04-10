@@ -1,49 +1,49 @@
 import * as THREE from "three";
 
-export function createNodeMesh(type) {
-  const colors = {
-    PC: 0x00ff00,
-    ROUTER: 0xff0000
-  };
+// 🌐 great-circle curve
+function createCurve(a, b) {
+  const points = [];
 
-  return new THREE.Mesh(
-    new THREE.SphereGeometry(0.035, 16, 16),
-    new THREE.MeshBasicMaterial({ color: colors[type] })
-  );
+  for (let i = 0; i <= 50; i++) {
+    const t = i / 50;
+
+    const p = new THREE.Vector3().lerpVectors(a, b, t);
+
+    // push outward to follow globe
+    p.normalize().multiplyScalar(1.05 + Math.sin(Math.PI * t) * 0.2);
+
+    points.push(p);
+  }
+
+  return new THREE.CatmullRomCurve3(points);
 }
 
-export function drawCurvedPath(earthMesh, path) {
-  const points = path.map(n =>
-    n.mesh.position.clone().normalize().multiplyScalar(1.3)
-  );
+// 🔗 CONNECTION LINE
+export function drawConnection(earthMesh, a, b) {
+  const curve = createCurve(a.mesh.position, b.mesh.position);
+
+  const geo = new THREE.TubeGeometry(curve, 64, 0.005, 6);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  earthMesh.add(mesh);
+}
+
+// 📡 OSPF PATH
+export function drawOSPFPath(earthMesh, path) {
+  const points = [];
+
+  path.forEach(n => {
+    points.push(n.mesh.position.clone());
+  });
 
   const curve = new THREE.CatmullRomCurve3(points);
 
-  const geo = new THREE.TubeGeometry(curve, 64, 0.01, 8);
+  const geo = new THREE.TubeGeometry(curve, 100, 0.008, 8);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 
   const mesh = new THREE.Mesh(geo, mat);
   earthMesh.add(mesh);
 
   return curve;
-}
-
-export function animatePacket(scene, curve) {
-  const packet = new THREE.Mesh(
-    new THREE.SphereGeometry(0.02),
-    new THREE.MeshBasicMaterial({ color: 0xffff00 })
-  );
-
-  scene.add(packet);
-
-  let t = 0;
-
-  function step() {
-    t += 0.005;
-    packet.position.copy(curve.getPoint(t));
-
-    if (t < 1) requestAnimationFrame(step);
-  }
-
-  step();
 }

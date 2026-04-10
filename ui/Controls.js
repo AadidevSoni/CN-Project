@@ -1,11 +1,12 @@
 export function setupControls() {
-  let mode = "SELECT";
+  let mode = "NONE";
   let selected = [];
 
   return {
     setMode: (m) => {
-      mode = m;
+      mode = (mode === m) ? "NONE" : m;
       selected = [];
+      return mode;
     },
 
     getMode: () => mode,
@@ -13,10 +14,11 @@ export function setupControls() {
     addSelection: (node) => {
       selected.push(node);
       if (selected.length > 2) selected.shift();
+      return selected;
     },
 
-    getSelected: () => selected,
+    clearSelection: () => selected = [],
 
-    clear: () => selected = []
+    getSelected: () => selected
   };
 }
