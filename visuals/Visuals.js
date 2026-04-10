@@ -48,9 +48,10 @@ export function createNodeMesh(type) {
 // ==============================
 // 🔗 DRAW CONNECTION (NORMAL LINK)
 // ==============================
-export function drawConnection(earthMesh, a, b) {
+export function drawConnection(earthMesh, a, b, weight = 1) {
   const curve = createCurve(a.mesh.position, b.mesh.position);
 
+  // 🔗 LINE
   const geo = new THREE.TubeGeometry(curve, 64, 0.004, 6);
   const mat = new THREE.MeshBasicMaterial({
     color: 0x00ffff,
@@ -59,7 +60,37 @@ export function drawConnection(earthMesh, a, b) {
   });
 
   const mesh = new THREE.Mesh(geo, mat);
-  earthMesh.add(mesh);
+  earthMesh.add(mesh); // ✅ FIXED
+
+  // ==============================
+  // 🏷️ WEIGHT LABEL (BETTER VERSION)
+  // ==============================
+
+  const mid = curve.getPointAt(0.5);
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = 256;
+  canvas.height = 128;
+
+  ctx.fillStyle = "white";
+  ctx.font = "bold 48px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(weight.toString(), 128, 64);
+
+  const texture = new THREE.CanvasTexture(canvas);
+
+  const spriteMaterial = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true
+  });
+
+  const sprite = new THREE.Sprite(spriteMaterial);
+  sprite.position.copy(mid);
+  sprite.scale.set(0.3, 0.15, 1);
+
+  earthMesh.add(sprite);
 
   return curve;
 }

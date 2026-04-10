@@ -1,31 +1,41 @@
-export class Network {
-  constructor() {
-    this.nodes = [];
-    this.ipCounter = 1;
-  }
-
-  addNode(type, mesh) {
-    const node = {
-      id: this.nodes.length,
-      type,
-      ip: `192.168.1.${this.ipCounter++}`,
-      neighbors: [],
-      mesh
-    };
-
-    mesh.userData.node = node;
-    this.nodes.push(node);
-    return node;
-  }
-
-  connect(a, b) {
-    const cost = a.mesh.position.distanceTo(b.mesh.position);
-
-    a.neighbors.push({ node: b, cost });
-    b.neighbors.push({ node: a, cost });
+class Network {
+  generateIP() {
+    const base = "192.168.0.";
+    return base + (this.nodes.length + 1);
   }
 
   findByIP(ip) {
     return this.nodes.find(n => n.ip === ip);
   }
+
+  constructor() {
+    this.nodes = [];
+    this.edges = new Map(); // adjacency list
+  }
+
+  addNode(type, mesh) {
+  const ip = this.generateIP();
+
+  const node = {
+    id: this.nodes.length,
+    type,
+    mesh,
+    ip, // ✅ ADD THIS
+    neighbors: []
+  };
+
+  mesh.userData.node = node;
+
+  this.nodes.push(node);
+  this.edges.set(node, []);
+
+  return node;
 }
+
+  connect(a, b, weight = 1) {
+    this.edges.get(a).push({ node: b, weight });
+    this.edges.get(b).push({ node: a, weight });
+  }
+}
+
+export { Network };

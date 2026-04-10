@@ -140,7 +140,14 @@ function createNode(point, type) {
 // CONNECT NODES
 // ==============================
 function connectNodes(a, b) {
-  network.connect(a, b);
+  const weight = parseInt(prompt("Enter weight:")) || 1;
+
+  a.neighbors.push({ node: b, weight });
+  b.neighbors.push({ node: a, weight });
+
+  network.connect(a, b, weight);
+
+  drawConnection(earthMesh, a, b, weight); // ✅ pass weight
 }
 
 // ==============================
@@ -152,14 +159,24 @@ function ping(ip1, ip2) {
 
   if (!n1 || !n2) {
     const selected = controlsState.getSelected();
-    if (selected.length < 2) return alert("Select 2 nodes or enter IPs");
+    if (selected.length < 2) return alert("Select 2 nodes");
     [n1, n2] = selected;
   }
 
   const path = findPath(network.nodes, n1, n2);
 
+  if (!path) {
+    ui.showMessage("❌ Not Connectable (No router / no valid path)");
+    return;
+  }
+
   const curve = drawOSPFPath(earthMesh, path);
   animatePacket(scene, curve);
+
+  ui.showMessage(
+    "✅ Path found: " +
+    path.map(n => n.type).join(" → ")
+  );
 }
 
 // ==============================
