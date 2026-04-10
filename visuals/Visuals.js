@@ -48,24 +48,16 @@ export function createNodeMesh(type) {
 // ==============================
 // 🔗 DRAW CONNECTION (NORMAL LINK)
 // ==============================
-export function drawConnection(earthMesh, a, b, weight = 1) {
+export function drawConnection(earthMesh, a, b, weight) {
   const curve = createCurve(a.mesh.position, b.mesh.position);
 
-  // 🔗 LINE
-  const geo = new THREE.TubeGeometry(curve, 64, 0.004, 6);
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0x00ffff,
-    transparent: true,
-    opacity: 0.7
-  });
+  const geo = new THREE.TubeGeometry(curve, 64, 0.005, 6);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
   const mesh = new THREE.Mesh(geo, mat);
-  earthMesh.add(mesh); // ✅ FIXED
+  earthMesh.add(mesh);
 
-  // ==============================
-  // 🏷️ WEIGHT LABEL (BETTER VERSION)
-  // ==============================
-
+  // 🔥 CREATE WEIGHT LABEL
   const mid = curve.getPointAt(0.5);
 
   const canvas = document.createElement("canvas");
@@ -75,24 +67,20 @@ export function drawConnection(earthMesh, a, b, weight = 1) {
   canvas.height = 128;
 
   ctx.fillStyle = "white";
-  ctx.font = "bold 48px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(weight.toString(), 128, 64);
+  ctx.font = "40px Arial";
+  ctx.fillText(weight.toString(), 80, 70);
 
   const texture = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(spriteMat);
 
-  const spriteMaterial = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true
-  });
-
-  const sprite = new THREE.Sprite(spriteMaterial);
-  sprite.position.copy(mid);
   sprite.scale.set(0.3, 0.15, 1);
+  sprite.position.copy(mid);
 
   earthMesh.add(sprite);
 
-  return curve;
+  // ✅ RETURN BOTH
+  return { mesh, label: sprite };
 }
 
 // ==============================

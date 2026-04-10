@@ -1,41 +1,34 @@
-class Network {
-  generateIP() {
-    const base = "192.168.0.";
-    return base + (this.nodes.length + 1);
-  }
-
-  findByIP(ip) {
-    return this.nodes.find(n => n.ip === ip);
-  }
-
+export class Network {
   constructor() {
     this.nodes = [];
-    this.edges = new Map(); // adjacency list
+    this.links = [];
+    this.ipCounter = 1;
+  }
+
+  clear() {
+    this.nodes = [];
+    this.links = [];
+    this.ipCounter = 1;
   }
 
   addNode(type, mesh) {
-  const ip = this.generateIP();
+    const node = {
+      id: this.nodes.length,
+      type,
+      ip: `192.168.1.${this.ipCounter++}`,
+      neighbors: [],
+      mesh
+    };
 
-  const node = {
-    id: this.nodes.length,
-    type,
-    mesh,
-    ip, // ✅ ADD THIS
-    neighbors: []
-  };
-
-  mesh.userData.node = node;
-
-  this.nodes.push(node);
-  this.edges.set(node, []);
-
-  return node;
-}
-
-  connect(a, b, weight = 1) {
-    this.edges.get(a).push({ node: b, weight });
-    this.edges.get(b).push({ node: a, weight });
+    mesh.userData.node = node;
+    this.nodes.push(node);
+    return node;
   }
-}
 
-export { Network };
+  connect(a, b, mesh, weight, label) {
+  a.neighbors.push({ node: b, weight });
+  b.neighbors.push({ node: a, weight });
+
+  this.links.push({ a, b, mesh, weight, label });
+}
+}

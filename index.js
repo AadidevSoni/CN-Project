@@ -12,14 +12,13 @@ import { findPath } from "./core/OSPF.js";
 import {
   createNodeMesh,
   drawConnection,
-  drawOSPFPath,
   animatePacket
 } from "./visuals/Visuals.js";
 import { setupControls } from "./ui/Controls.js";
 import { setupUI } from "./ui/UI.js";
 
 // ==============================
-// BASIC SETUP (FIXED)
+// BASIC SETUP
 // ==============================
 const scene = new THREE.Scene();
 
@@ -35,7 +34,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// resize fix
+// resize
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -50,7 +49,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
 // ==============================
-// EARTH (UNCHANGED)
+// EARTH
 // ==============================
 const earthGroup = new THREE.Group();
 earthGroup.rotation.z = -23.4 * Math.PI / 180;
@@ -111,7 +110,7 @@ scene.add(sunLight);
 // ==============================
 const network = new Network();
 const controlsState = setupControls();
-const ui = setupUI(controlsState, network, connectNodes, ping);
+const ui = setupUI(controlsState, network, connectNodes, ping, clearNetwork);
 
 // ==============================
 // RAYCASTER
@@ -125,7 +124,6 @@ const mouse = new THREE.Vector2();
 function createNode(point, type) {
   const mesh = createNodeMesh(type);
 
-  // convert world → local (CRITICAL)
   const local = earthMesh.worldToLocal(point.clone());
   const dir = local.clone().normalize();
 
@@ -136,22 +134,68 @@ function createNode(point, type) {
   return network.addNode(type, mesh);
 }
 
+function clearNetwork() {
+  network.nodes.forEach(node => {
+    earthMesh.remove(node.mesh);
+  });
+
+  network.links.forEach(link => {
+    earthMesh.remove(link.mesh);
+
+    // ✅ NOW THIS WORKS
+    if (link.label) {
+      earthMesh.remove(link.label);
+    }
+  });
+
+  network.clear();
+  controlsState.clearSelection();
+}
+
 // ==============================
 // CONNECT NODES
 // ==============================
 function connectNodes(a, b) {
-  const weight = parseInt(prompt("Enter weight:")) || 1;
+  let weight = prompt("Enter link cost:");
 
-  a.neighbors.push({ node: b, weight });
-  b.neighbors.push({ node: a, weight });
+  if (weight === null) return;
 
-  network.connect(a, b, weight);
+  weight = parseFloat(weight);
+  if (isNaN(weight) || weight <= 0) {
+    alert("Invalid weight");
+    return;
+  }
 
-  drawConnection(earthMesh, a, b, weight); // ✅ pass weight
+  const { mesh, label } = drawConnection(earthMesh, a, b, weight);
+
+  network.connect(a, b, mesh, weight, label);
 }
 
 // ==============================
-// PING (OSPF)
+// HIGHLIGHT PATH (KEY FEATURE)
+// ==============================
+function highlightPath(path) {
+  network.links.forEach(link => {
+    link.mesh.material.color.set(0x00ffff);
+  });
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i];
+    const b = path[i + 1];
+
+    const link = network.links.find(l =>
+      (l.a === a && l.b === b) ||
+      (l.a === b && l.b === a)
+    );
+
+    if (link) {
+      link.mesh.material.color.set(0xffff00);
+    }
+  }
+}
+
+// ==============================
+// PING
 // ==============================
 function ping(ip1, ip2) {
   let n1 = network.findByIP(ip1);
@@ -159,24 +203,27 @@ function ping(ip1, ip2) {
 
   if (!n1 || !n2) {
     const selected = controlsState.getSelected();
-    if (selected.length < 2) return alert("Select 2 nodes");
+    if (selected.length < 2) {
+      alert("Select 2 nodes or enter valid IPs");
+      return;
+    }
     [n1, n2] = selected;
   }
 
   const path = findPath(network.nodes, n1, n2);
 
-  if (!path) {
-    ui.showMessage("❌ Not Connectable (No router / no valid path)");
+  if (!path || path.length === 0) {
+    alert("No path found ❌");
     return;
   }
 
-  const curve = drawOSPFPath(earthMesh, path);
-  animatePacket(scene, curve);
+  highlightPath(path);
 
-  ui.showMessage(
-    "✅ Path found: " +
-    path.map(n => n.type).join(" → ")
-  );
+  // 🔥 NEW: animate packet
+  const points = path.map(n => n.mesh.position.clone());
+  const curve = new THREE.CatmullRomCurve3(points);
+
+  animatePacket(scene, curve);
 }
 
 // ==============================
@@ -200,12 +247,9 @@ window.addEventListener("click", (e) => {
       const selected = controlsState.addSelection(node);
       ui.showNode(node);
 
-      // 🔗 CONNECT MODE
+      // CONNECT MODE
       if (mode === "CONNECT" && selected.length === 2) {
         connectNodes(selected[0], selected[1]);
-
-        drawConnection(earthMesh, selected[0], selected[1]);
-
         controlsState.clearSelection();
       }
 
@@ -225,7 +269,7 @@ window.addEventListener("click", (e) => {
 });
 
 // ==============================
-// ANIMATION LOOP (UNCHANGED + SAFE)
+// ANIMATION LOOP
 // ==============================
 function animate() {
   requestAnimationFrame(animate);

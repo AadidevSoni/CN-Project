@@ -1,4 +1,4 @@
-export function setupUI(controls, network, connectNodes, ping) {
+export function setupUI(controls, network, connectNodes, ping, clearNetwork) {
   const ui = document.getElementById("ui");
 
   // 🌌 FUTURE CSS
@@ -100,7 +100,7 @@ export function setupUI(controls, network, connectNodes, ping) {
   };
 
   document.getElementById("clear").onclick = () => {
-    location.reload(); // simplest + clean reset
+    clearNetwork();
   };
 
   return {
