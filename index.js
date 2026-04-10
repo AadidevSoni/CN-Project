@@ -1,6 +1,3 @@
-// ==============================
-// IMPORTS
-// ==============================
 import * as THREE from "three";
 import { OrbitControls } from "jsm/controls/OrbitControls.js";
 
@@ -17,10 +14,14 @@ import {
 import { setupControls } from "./ui/Controls.js";
 import { setupUI } from "./ui/UI.js";
 
-// ==============================
-// BASIC SETUP
-// ==============================
 const scene = new THREE.Scene();
+let shouldRotate = true;
+let mouseDownTime = 0;
+const CLICK_THRESHOLD = 200; 
+
+window.addEventListener("mousedown", () => {
+  mouseDownTime = Date.now();
+});
 
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -34,23 +35,16 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// resize
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ==============================
-// CONTROLS
-// ==============================
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-// ==============================
-// EARTH
-// ==============================
 const earthGroup = new THREE.Group();
 earthGroup.rotation.z = -23.4 * Math.PI / 180;
 scene.add(earthGroup);
@@ -68,11 +62,9 @@ earthGroup.add(earthMesh);
 renderer.outputEncoding = THREE.sRGBEncoding;
 mat.map.encoding = THREE.sRGBEncoding;
 
-// Stars
 const stars = getStarField({ numStars: 10000 });
 scene.add(stars);
 
-// Lights
 const lightsMat = new THREE.MeshBasicMaterial({
   map: loader.load("./textures/earthlights4k.jpg"),
   blending: THREE.AdditiveBlending,
@@ -80,7 +72,6 @@ const lightsMat = new THREE.MeshBasicMaterial({
 const lightsMesh = new THREE.Mesh(geo, lightsMat);
 earthGroup.add(lightsMesh);
 
-// Clouds
 const cloudsMat = new THREE.MeshStandardMaterial({
   map: loader.load("./textures/earthcloudmap.jpg"),
   transparent: true,
@@ -94,33 +85,29 @@ earthGroup.add(cloudsMesh);
 lightsMat.map.encoding = THREE.sRGBEncoding;
 cloudsMat.map.encoding = THREE.sRGBEncoding;
 
-// Glow
 const fresnelMat = getFresnelMat();
 const glowMesh = new THREE.Mesh(geo, fresnelMat);
 glowMesh.scale.setScalar(1.02);
 earthGroup.add(glowMesh);
 
-// Light
 const sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
 sunLight.position.set(-2, 0.5, 1.5);
 scene.add(sunLight);
 
-// ==============================
-// NETWORK SYSTEM
-// ==============================
 const network = new Network();
 const controlsState = setupControls();
-const ui = setupUI(controlsState, network, connectNodes, ping, clearNetwork);
+const ui = setupUI(
+  controlsState,
+  network,
+  connectNodes,
+  ping,
+  clearNetwork,
+  (val) => shouldRotate = val   
+);
 
-// ==============================
-// RAYCASTER
-// ==============================
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// ==============================
-// CREATE NODE
-// ==============================
 function createNode(point, type) {
   const mesh = createNodeMesh(type);
 
@@ -142,7 +129,6 @@ function clearNetwork() {
   network.links.forEach(link => {
     earthMesh.remove(link.mesh);
 
-    // ✅ NOW THIS WORKS
     if (link.label) {
       earthMesh.remove(link.label);
     }
@@ -152,28 +138,17 @@ function clearNetwork() {
   controlsState.clearSelection();
 }
 
-// ==============================
-// CONNECT NODES
-// ==============================
-function connectNodes(a, b) {
-  let weight = prompt("Enter link cost:");
-
-  if (weight === null) return;
-
-  weight = parseFloat(weight);
-  if (isNaN(weight) || weight <= 0) {
-    alert("Invalid weight");
+function connectNodes(a, b, weight) {
+  if (weight === undefined || isNaN(weight)) {
+    console.error("Invalid weight");
     return;
   }
 
-  const { mesh, label } = drawConnection(earthMesh, a, b, weight);
+  const { mesh, label, curve } = drawConnection(earthMesh, a, b, weight);
 
-  network.connect(a, b, mesh, weight, label);
+  network.connect(a, b, mesh, weight, label, curve);
 }
 
-// ==============================
-// HIGHLIGHT PATH (KEY FEATURE)
-// ==============================
 function highlightPath(path) {
   network.links.forEach(link => {
     link.mesh.material.color.set(0x00ffff);
@@ -194,41 +169,49 @@ function highlightPath(path) {
   }
 }
 
-// ==============================
-// PING
-// ==============================
 function ping(ip1, ip2) {
   let n1 = network.findByIP(ip1);
   let n2 = network.findByIP(ip2);
 
   if (!n1 || !n2) {
     const selected = controlsState.getSelected();
-    if (selected.length < 2) {
-      alert("Select 2 nodes or enter valid IPs");
-      return;
-    }
+    if (selected.length < 2) return;
     [n1, n2] = selected;
   }
 
   const path = findPath(network.nodes, n1, n2);
-
-  if (!path || path.length === 0) {
-    alert("No path found ❌");
-    return;
-  }
+  if (!path) return;
 
   highlightPath(path);
 
-  // 🔥 NEW: animate packet
-  const points = path.map(n => n.mesh.position.clone());
-  const curve = new THREE.CatmullRomCurve3(points);
-
-  animatePacket(scene, curve);
+  animateFullPath(path);
 }
 
-// ==============================
-// CLICK HANDLING
-// ==============================
+function animateFullPath(path) {
+  let i = 0;
+
+  function animateNext() {
+    if (i >= path.length - 1) return;
+
+    const a = path[i];
+    const b = path[i + 1];
+
+    const link = network.links.find(l =>
+      (l.a === a && l.b === b) ||
+      (l.a === b && l.b === a)
+    );
+
+    if (!link) return;
+
+    animatePacket(scene, link.curve);
+
+    i++;
+    setTimeout(animateNext, 600); 
+  }
+
+  animateNext();
+}
+
 window.addEventListener("click", (e) => {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -241,20 +224,25 @@ window.addEventListener("click", (e) => {
     const obj = hits[0].object;
 
     if (obj.userData.node) {
-      const node = obj.userData.node;
-      const mode = controlsState.getMode();
+  const node = obj.userData.node;
+  const mode = controlsState.getMode();
 
-      const selected = controlsState.addSelection(node);
-      ui.showNode(node);
+  if (mode === "CONNECT") {
+    const selected = controlsState.addSelection(node);
 
-      // CONNECT MODE
-      if (mode === "CONNECT" && selected.length === 2) {
-        connectNodes(selected[0], selected[1]);
-        controlsState.clearSelection();
-      }
-
-      return;
+    if (selected.length === 2) {
+      ui.setPendingNodes([...selected]);
+      controlsState.clearSelection();
     }
+
+    return;
+  }
+
+  ui.showNode(node);
+  controlsState.addSelection(node);
+
+  return;
+}
   }
 
   const earthHit = raycaster.intersectObject(earthMesh);
@@ -268,16 +256,15 @@ window.addEventListener("click", (e) => {
   }
 });
 
-// ==============================
-// ANIMATION LOOP
-// ==============================
 function animate() {
   requestAnimationFrame(animate);
 
-  earthMesh.rotation.y += 0.002;
-  lightsMesh.rotation.y += 0.002;
-  cloudsMesh.rotation.y += 0.0023;
-  glowMesh.rotation.y += 0.002;
+  if (shouldRotate) {
+    earthMesh.rotation.y += 0.002;
+    lightsMesh.rotation.y += 0.002;
+    cloudsMesh.rotation.y += 0.0023;
+    glowMesh.rotation.y += 0.002;
+  }
 
   controls.update();
   renderer.render(scene, camera);

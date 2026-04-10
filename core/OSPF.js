@@ -1,29 +1,57 @@
 export function findPath(nodes, start, end) {
+
+  function getConnectedRouters(node) {
+    return node.neighbors
+      .filter(n => n.node.type === "ROUTER")
+      .map(n => ({ node: n.node, weight: n.weight }));
+  }
+
+  let startRouters = [];
+  let endRouters = [];
+
+  if (start.type === "PC") {
+    startRouters = getConnectedRouters(start);
+    if (startRouters.length === 0) return null;
+  } else {
+    startRouters = [{ node: start, weight: 0 }];
+  }
+
+  if (end.type === "PC") {
+    endRouters = getConnectedRouters(end);
+    if (endRouters.length === 0) return null;
+  } else {
+    endRouters = [{ node: end, weight: 0 }];
+  }
+
+  const routers = nodes.filter(n => n.type === "ROUTER");
+
   const dist = new Map();
   const prev = new Map();
   const visited = new Set();
 
-  nodes.forEach(n => dist.set(n, Infinity));
-  dist.set(start, 0);
+  routers.forEach(r => dist.set(r, Infinity));
+
+  startRouters.forEach(r => {
+    dist.set(r.node, r.weight);
+  });
 
   while (true) {
     let current = null;
-    let minDist = Infinity;
+    let min = Infinity;
 
-    for (let n of nodes) {
-      if (!visited.has(n) && dist.get(n) < minDist) {
-        minDist = dist.get(n);
-        current = n;
+    for (let r of routers) {
+      if (!visited.has(r) && dist.get(r) < min) {
+        min = dist.get(r);
+        current = r;
       }
     }
 
     if (!current) break;
-    if (current === end) break;
 
     visited.add(current);
 
-    for (let { node: neighbor, weight } of current.neighbors || []) {
-      if (weight === undefined) continue; // safety
+    for (let { node: neighbor, weight } of current.neighbors) {
+      if (neighbor.type !== "ROUTER") continue; 
 
       const newDist = dist.get(current) + weight;
 
@@ -34,24 +62,35 @@ export function findPath(nodes, start, end) {
     }
   }
 
-  // ❌ No path
-  if (!prev.has(end)) return null;
+  let bestEndRouter = null;
+  let bestCost = Infinity;
 
-  // ✅ reconstruct path FIRST
-  const path = [];
-  let curr = end;
+  for (let r of endRouters) {
+    const totalCost = dist.get(r.node) + r.weight;
+
+    if (totalCost < bestCost) {
+      bestCost = totalCost;
+      bestEndRouter = r.node;
+    }
+  }
+
+  if (!bestEndRouter || dist.get(bestEndRouter) === Infinity) return null;
+
+  const routerPath = [];
+  let curr = bestEndRouter;
 
   while (curr) {
-    path.unshift(curr);
+    routerPath.unshift(curr);
     curr = prev.get(curr);
   }
 
-  // ✅ NOW apply your PC → PC rule
-  if (start.type === "PC" && end.type === "PC") {
-    const hasRouter = path.some(n => n.type === "ROUTER");
+  const finalPath = [];
 
-    if (!hasRouter) return null;
-  }
+  if (start.type === "PC") finalPath.push(start);
 
-  return path;
+  finalPath.push(...routerPath);
+
+  if (end.type === "PC") finalPath.push(end);
+
+  return finalPath;
 }

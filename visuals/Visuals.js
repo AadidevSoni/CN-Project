@@ -1,8 +1,5 @@
 import * as THREE from "three";
 
-// ==============================
-// 🌐 CREATE CURVE (REUSABLE)
-// ==============================
 function createCurve(a, b) {
   const points = [];
 
@@ -11,7 +8,6 @@ function createCurve(a, b) {
 
     const p = new THREE.Vector3().lerpVectors(a, b, t);
 
-    // push outward to follow globe curvature
     p.normalize().multiplyScalar(1.05 + Math.sin(Math.PI * t) * 0.25);
 
     points.push(p);
@@ -20,14 +16,11 @@ function createCurve(a, b) {
   return new THREE.CatmullRomCurve3(points);
 }
 
-// ==============================
-// 🖥️ CREATE NODE (PC / ROUTER)
-// ==============================
 export function createNodeMesh(type) {
   let color;
 
-  if (type === "PC") color = 0x00ff88;       // neon green
-  else if (type === "ROUTER") color = 0xff4444; // soft red
+  if (type === "PC") color = 0x00ff88;     
+  else if (type === "ROUTER") color = 0xff4444; 
   else color = 0xffffff;
 
   const geometry = new THREE.SphereGeometry(0.035, 16, 16);
@@ -39,27 +32,22 @@ export function createNodeMesh(type) {
 
   const mesh = new THREE.Mesh(geometry, material);
 
-  // IMPORTANT for click detection
   mesh.userData.node = null;
 
   return mesh;
 }
 
-// ==============================
-// 🔗 DRAW CONNECTION (NORMAL LINK)
-// ==============================
 export function drawConnection(earthMesh, a, b, weight) {
   const curve = createCurve(a.mesh.position, b.mesh.position);
 
-  const geo = new THREE.TubeGeometry(curve, 64, 0.005, 6);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+  const mesh = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 64, 0.005, 6),
+    new THREE.MeshBasicMaterial({ color: 0x00ffff })
+  );
 
-  const mesh = new THREE.Mesh(geo, mat);
   earthMesh.add(mesh);
 
-  // 🔥 CREATE WEIGHT LABEL
   const mid = curve.getPointAt(0.5);
-
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
@@ -68,24 +56,19 @@ export function drawConnection(earthMesh, a, b, weight) {
 
   ctx.fillStyle = "white";
   ctx.font = "40px Arial";
-  ctx.fillText(weight.toString(), 80, 70);
+  ctx.fillText(weight, 80, 70);
 
   const texture = new THREE.CanvasTexture(canvas);
-  const spriteMat = new THREE.SpriteMaterial({ map: texture });
-  const sprite = new THREE.Sprite(spriteMat);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
 
   sprite.scale.set(0.3, 0.15, 1);
   sprite.position.copy(mid);
 
   earthMesh.add(sprite);
 
-  // ✅ RETURN BOTH
-  return { mesh, label: sprite };
+  return { mesh, label: sprite, curve };
 }
 
-// ==============================
-// 📡 DRAW OSPF PATH (HIGHLIGHT)
-// ==============================
 export function drawOSPFPath(earthMesh, path) {
   const points = path.map(n => n.mesh.position.clone());
 
@@ -103,9 +86,6 @@ export function drawOSPFPath(earthMesh, path) {
   return curve;
 }
 
-// ==============================
-// 🚀 PACKET ANIMATION (UPGRADED)
-// ==============================
 export function animatePacket(scene, curve) {
   const geometry = new THREE.SphereGeometry(0.02, 12, 12);
   const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -116,7 +96,7 @@ export function animatePacket(scene, curve) {
   let t = 0;
 
   function animate() {
-    t += 0.008; // slower = smoother
+    t += 0.008; 
 
     if (t > 1) {
       scene.remove(packet);

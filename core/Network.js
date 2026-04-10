@@ -5,12 +5,6 @@ export class Network {
     this.ipCounter = 1;
   }
 
-  clear() {
-    this.nodes = [];
-    this.links = [];
-    this.ipCounter = 1;
-  }
-
   addNode(type, mesh) {
     const node = {
       id: this.nodes.length,
@@ -25,14 +19,22 @@ export class Network {
     return node;
   }
 
-  connect(a, b, mesh, weight, label) {
-  a.neighbors.push({ node: b, weight: Number(weight) });
-  b.neighbors.push({ node: a, weight: Number(weight) });
+  connect(a, b, mesh, weight, label, curve) {
+  weight = Number(weight);
 
-  this.links.push({ a, b, mesh, weight: Number(weight), label });
+  a.neighbors.push({ node: b, weight });
+  b.neighbors.push({ node: a, weight });
+
+  this.links.push({ a, b, mesh, weight, label, curve });
 }
 
-findByIP(ip) {
-  return this.nodes.find(n => n.ip === ip);
-}
+  findByIP(ip) {
+    return this.nodes.find(n => n.ip === ip);
+  }
+
+  clear() {
+    this.nodes = [];
+    this.links = [];
+    this.ipCounter = 1;
+  }
 }

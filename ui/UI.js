@@ -1,7 +1,7 @@
-export function setupUI(controls, network, connectNodes, ping, clearNetwork) {
+export function setupUI(controls, network, connectNodes, ping, clearNetwork, setRotation) {
   const ui = document.getElementById("ui");
+  let pendingNodes = [];
 
-  // 🌌 FUTURISTIC GLASS CSS
   const style = document.createElement("style");
   style.innerHTML = `
   #ui {
@@ -92,7 +92,6 @@ export function setupUI(controls, network, connectNodes, ping, clearNetwork) {
   `;
   document.head.appendChild(style);
 
-  // 🌌 HTML STRUCTURE
   ui.innerHTML = `
   <div class="glass-panel">
     <div class="title">🌐 OSPF SIMULATOR</div>
@@ -114,19 +113,28 @@ export function setupUI(controls, network, connectNodes, ping, clearNetwork) {
 
   const panel = document.getElementById("panel");
 
-  // ⚠️ FIX: only toolbar buttons
   const buttons = document.querySelectorAll(".toolbar .btn");
 
   function setActive(btn, mode) {
-    buttons.forEach(b => b.classList.remove("active"));
-    const current = controls.setMode(mode);
+  buttons.forEach(b => b.classList.remove("active"));
+  const current = controls.setMode(mode);
 
-    if (current !== "NONE") {
-      btn.classList.add("active");
-    }
+  if (current !== "NONE") {
+    btn.classList.add("active");
   }
 
-  // 🎮 BUTTON LOGIC
+  if (
+    current === "PC" ||
+    current === "ROUTER" ||
+    current === "CONNECT" ||
+    current === "SELECT"
+  ) {
+    setRotation(false);
+  } else {
+    setRotation(true);
+  }
+}
+
   document.getElementById("pc").onclick = (e) => setActive(e.target, "PC");
   document.getElementById("router").onclick = (e) => setActive(e.target, "ROUTER");
   document.getElementById("select").onclick = (e) => setActive(e.target, "SELECT");
@@ -143,11 +151,66 @@ export function setupUI(controls, network, connectNodes, ping, clearNetwork) {
   };
 
   return {
-    showNode: (node) => {
-      panel.innerHTML = `
-        <b style="color:cyan">${node.type}</b><br>
-        <span style="color:#aaa">IP:</span> ${node.ip}
-      `;
-    }
-  };
+  showNode: (node) => {
+    panel.innerHTML = `
+      <b>${node.type}</b><br>
+      IP: ${node.ip}
+    `;
+  },
+
+  setPendingNodes: (nodes) => {
+    pendingNodes = nodes;
+
+    console.log("Opening weight UI for:", nodes);
+
+    panel.innerHTML = `
+      <div style="color:cyan; margin-bottom:6px;">
+        Create Connection
+      </div>
+
+      <div style="margin-bottom:8px;">
+        ${nodes[0].ip} → ${nodes[1].ip}
+      </div>
+
+      <input id="weightInput" type="number" placeholder="Enter Cost" style="
+        width:100%;
+        padding:6px;
+        background:rgba(255,255,255,0.1);
+        border:none;
+        color:white;
+        border-radius:6px;
+      "/>
+
+      <button id="applyWeight" class="btn" style="margin-top:8px;">
+        Apply
+      </button>
+    `;
+
+    requestAnimationFrame(() => {
+      const btn = document.getElementById("applyWeight");
+
+      if (!btn) {
+        console.error("Apply button not found");
+        return;
+      }
+
+      btn.onclick = () => {
+        const val = parseFloat(
+          document.getElementById("weightInput").value
+        );
+
+        console.log("Weight entered:", val);
+
+        if (isNaN(val) || val <= 0) {
+          panel.innerHTML = "Invalid weight";
+          return;
+        }
+
+        connectNodes(nodes[0], nodes[1], val);
+
+        panel.innerHTML = "Connection Created";
+      };
+    });
+  }
+};
 }
