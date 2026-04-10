@@ -26,9 +26,13 @@ export class Network {
   }
 
   connect(a, b, mesh, weight, label) {
-  a.neighbors.push({ node: b, weight });
-  b.neighbors.push({ node: a, weight });
+  a.neighbors.push({ node: b, weight: Number(weight) });
+  b.neighbors.push({ node: a, weight: Number(weight) });
 
-  this.links.push({ a, b, mesh, weight, label });
+  this.links.push({ a, b, mesh, weight: Number(weight), label });
+}
+
+findByIP(ip) {
+  return this.nodes.find(n => n.ip === ip);
 }
 }

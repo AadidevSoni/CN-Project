@@ -1,10 +1,4 @@
 export function findPath(nodes, start, end) {
-  // ❌ RULE: PC → PC must pass through router
-  if (start.type === "PC" && end.type === "PC") {
-    const hasRouter = nodes.some(n => n.type === "ROUTER");
-    if (!hasRouter) return null;
-  }
-
   const dist = new Map();
   const prev = new Map();
   const visited = new Set();
@@ -29,6 +23,8 @@ export function findPath(nodes, start, end) {
     visited.add(current);
 
     for (let { node: neighbor, weight } of current.neighbors || []) {
+      if (weight === undefined) continue; // safety
+
       const newDist = dist.get(current) + weight;
 
       if (newDist < dist.get(neighbor)) {
@@ -41,7 +37,7 @@ export function findPath(nodes, start, end) {
   // ❌ No path
   if (!prev.has(end)) return null;
 
-  // reconstruct path
+  // ✅ reconstruct path FIRST
   const path = [];
   let curr = end;
 
@@ -50,10 +46,11 @@ export function findPath(nodes, start, end) {
     curr = prev.get(curr);
   }
 
-  // ✅ RULE: ensure router exists in path (for PC → PC)
+  // ✅ NOW apply your PC → PC rule
   if (start.type === "PC" && end.type === "PC") {
-    const hasRouterInPath = path.some(n => n.type === "ROUTER");
-    if (!hasRouterInPath) return null;
+    const hasRouter = path.some(n => n.type === "ROUTER");
+
+    if (!hasRouter) return null;
   }
 
   return path;
