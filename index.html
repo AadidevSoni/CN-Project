@@ -4,11 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Robot Bobby Earth</title>
+
     <style>
       body {
         margin: 0;
       }
+
+      /* OPTIONAL: make UI visible nicely */
+      #ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        background: rgba(0,0,0,0.6);
+        padding: 10px;
+        border-radius: 8px;
+        color: white;
+        font-family: monospace;
+      }
+
+      button {
+        margin: 3px;
+      }
     </style>
+
     <script type="importmap">
 			{
 				"imports": {
@@ -18,7 +37,12 @@
 			}
 		</script>
   </head>
+
   <body>
+
+    <!-- ✅ THIS FIXES YOUR ERROR -->
+    <div id="ui"></div>
+
     <script type="module" src="index.js"></script>
   </body>
 </html>
